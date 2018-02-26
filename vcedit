@@ -1,0 +1,88 @@
+#!/bin/bash
+
+module load Subversion
+
+usage ()
+{
+    echo "Usage: $0 -r <repo_url> <filename>"
+    exit 0
+}
+
+while [ -n "$1" ]; do
+    while getopts ":r:" OPT; do
+        case $OPT in
+       	    r)
+                if [ -d $OPTARG ]; then
+                    REPO_DIR=`readlink -f $OPTARG`
+                else
+                    echo
+                    echo Repository directory \"$OPTARG\" cannot found.
+                    exit 1
+                fi
+                ;;
+            \?)
+                echo
+                echo Invalid option -$OPTARG.
+                usage
+                ;;
+            :)
+                echo
+                echo Missing argument for -$OPTARG.
+                usage
+                ;;
+            *)
+                usage
+                ;;
+        esac
+    done
+    if [ $OPTIND == 1 ]; then
+        if [ -f $1 ]; then
+            EDIT_FILE=$1
+            FULL_FILE=`readlink -f $1`
+            SHORT_FILE=`echo $FULL_FILE | awk -F '/' {'print $NF'}`
+            echo $SHORT_FILE
+        else
+            echo file \"$1\" is not found or not a file.  
+            exit 1
+        fi
+        shift
+    else
+        shift $((OPTIND-1))
+        unset OPTIND
+    fi
+done
+
+FILE_STATUS=(`svn status $EDIT_FILE -v | awk {'print$1,$4'}`)
+
+if [ "${FILE_STATUS[0]}" == "K" ]
+then
+    echo File $EDIT_FILE is currently locked and being edited by user \"${FILE_STATUS[1]}\". 
+    exit 1
+fi
+
+svn lock $EDIT_FILE
+SVN_URL=`svn info --show-item repos-root-url`
+
+TMPDIR=`mktemp -d `
+
+cd $TMPDIR
+echo TMPDIR is $TMPDIR 
+svn export ${SVN_URL}${FULL_FILE}
+vi $SHORT_FILE
+NUM_DIFF=`diff ${FULL_FILE} ${SHORT_FILE}|wc -l`
+if [ $NUM_DIFF != 0 ]
+then
+    echo "Please enter a single line comment for changes made to ${SHORT_FILE}, then press [ENTER]:"
+    read COMMENT
+    echo $COMMENT
+    chmod u+w $FULL_FILE
+    cp ${SHORT_FILE} ${FULL_FILE}
+    cd -
+    svn ci ${EDIT_FILE} -m "$COMMENT"
+else
+    echo No change made on $SHORT_FILE
+    cd -
+    svn unlock $EDIT_FILE
+fi
+chmod -w $FULL_FILE
+
