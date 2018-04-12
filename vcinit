@@ -64,7 +64,7 @@ echo Importing \"$IMPORT_DIR\" directory into \"$REPO_DIR\" repository.
 SVN_URL=file://$REPO_DIR
 
 #svn import $IMPORT_DIR
-[[ $DEBUG ]] && echo Executing \'svn import $IMPORT_DIR ${SVN_URL}${IMPORT_DIR} -m \"Initial import of $IMPORT_DIR\"\'.
+[[ $VCDEBUG ]] && echo Executing \'svn import $IMPORT_DIR ${SVN_URL}${IMPORT_DIR} -m \"Initial import of $IMPORT_DIR\"\'.
 svn import $IMPORT_DIR ${SVN_URL}${IMPORT_DIR} -m "Initial import of $IMPORT_DIR"
 
 if [ $? != 0 ]
@@ -73,10 +73,10 @@ then
     exit 1
 fi
 
-[[ $DEBUG ]] && echo Executing \'svn checkout --force ${SVN_URL}${IMPORT_DIR} $IMPORT_DIR\'.
+[[ $VCDEBUG ]] && echo Executing \'svn checkout --force ${SVN_URL}${IMPORT_DIR} $IMPORT_DIR\'.
 svn checkout --force ${SVN_URL}${IMPORT_DIR} $IMPORT_DIR
 
-[[ $DEBUG ]] && echo Executing \'svn -R ps svn:needs-lock ON ${IMPORT_DIR}\'. 
+[[ $VCDEBUG ]] && echo Executing \'svn -R ps svn:needs-lock ON ${IMPORT_DIR}\'. 
 svn -R ps svn:needs-lock ON $IMPORT_DIR
-[[ $DEBUG ]] && echo Executing \'svn ci $IMPORT_DIR -m \"set needs-lock properties\"\'. 
+[[ $VCDEBUG ]] && echo Executing \'svn ci $IMPORT_DIR -m \"set needs-lock properties\"\'. 
 svn ci $IMPORT_DIR -m "set needs-lock properties"

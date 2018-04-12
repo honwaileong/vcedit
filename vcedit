@@ -1,5 +1,7 @@
 #!/bin/bash
 
+trap "echo Process is interrupted; svn unlock $EDIT_FILE; exit 255" SIGINT SIGTERM
+
 module load Subversion
 
 usage ()
@@ -66,19 +68,26 @@ SVN_URL=`svn info --show-item repos-root-url`
 TMPDIR=`mktemp -d `
 
 cd $TMPDIR
-echo TMPDIR is $TMPDIR 
+[ $VCDEBUG ] && echo TMPDIR is $TMPDIR 
 svn export ${SVN_URL}${FULL_FILE}
 vi $SHORT_FILE
 NUM_DIFF=`diff ${FULL_FILE} ${SHORT_FILE}|wc -l`
 if [ $NUM_DIFF != 0 ]
 then
+    if [ $USER == "root" ]
+    then
+        echo "Please enter username who made the change, then press [ENTER]:"
+        read USERNAME
+    else
+        USERNAME=$USER
+    fi
     echo "Please enter a single line comment for changes made to ${SHORT_FILE}, then press [ENTER]:"
     read COMMENT
-    echo $COMMENT
+    echo $USERNAME: $COMMENT
     chmod u+w $FULL_FILE
     cp ${SHORT_FILE} ${FULL_FILE}
     cd -
-    svn ci ${EDIT_FILE} -m "$COMMENT"
+    svn ci ${EDIT_FILE} -m "$USERNAME: $COMMENT"
 else
     echo No change made on $SHORT_FILE
     cd -
