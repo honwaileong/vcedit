@@ -40,9 +40,6 @@ while [ -n "$1" ]; do
     if [ $OPTIND == 1 ]; then
         if [ -f $1 ]; then
             EDIT_FILE=$1
-            FULL_FILE=`readlink -f $1`
-            SHORT_FILE=`echo $FULL_FILE | awk -F '/' {'print $NF'}`
-            echo $SHORT_FILE
         else
             echo file \"$1\" is not found or not a file.  
             exit 1
@@ -63,35 +60,24 @@ then
 fi
 
 svn lock $EDIT_FILE
-SVN_URL=`svn info --show-item repos-root-url`
 
-TMPDIR=`mktemp -d `
-
-cd $TMPDIR
-[ $VCDEBUG ] && echo TMPDIR is $TMPDIR 
-svn export ${SVN_URL}${FULL_FILE}
-vi $SHORT_FILE
-NUM_DIFF=`diff ${FULL_FILE} ${SHORT_FILE}|wc -l`
+vi $EDIT_FILE
+NUM_DIFF=`svn diff ${EDIT_FILE}|wc -l`
 if [ $NUM_DIFF != 0 ]
 then
     if [ $USER == "root" ]
     then
-        echo "Please enter username who made the change, then press [ENTER]:"
+        echo Please enter username, then press [ENTER]:
         read USERNAME
     else
         USERNAME=$USER
     fi
-    echo "Please enter a single line comment for changes made to ${SHORT_FILE}, then press [ENTER]:"
+    echo Please enter a single line comment for changes made to "${EDIT_FILE}", then press [ENTER]:
     read COMMENT
     echo $USERNAME: $COMMENT
-    chmod u+w $FULL_FILE
-    cp ${SHORT_FILE} ${FULL_FILE}
-    cd -
     svn ci ${EDIT_FILE} -m "$USERNAME: $COMMENT"
 else
     echo No change made on $SHORT_FILE
-    cd -
     svn unlock $EDIT_FILE
 fi
-chmod -w $FULL_FILE
 
