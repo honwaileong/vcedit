@@ -10,13 +10,6 @@ usage ()
 
 cicomment ()
 {
-    if [ $USER == "root" ]
-    then
-        echo Please enter username, then press [ENTER]:
-        read USERNAME
-    else
-        USERNAME=$USER
-    fi
     if [[ -z $1 ]];then
         echo Please enter a single line comment for changes made to "${EDIT_FILE}", then press [ENTER]:
         read COMMENT
@@ -35,7 +28,7 @@ vcinit ()
         do
             echo Please enter URL of Subversion repository: 
             read SVNREPO
-            SVNURL=$(svn info $SVNREPO | grep "Repository Root" | awk {'print $3'})
+            SVNURL=$(svn --config-option config:tunnels:ssh="ssh -l $USERNAME" info $SVNREPO | grep "Repository Root" | awk {'print $3'})
             if [ -z $SVNURL ];then
                 echo $SVNREPO is not a valid Subversion repository. 
             else
@@ -43,27 +36,36 @@ vcinit ()
             fi
         done
         cicomment "Initial import of $2 to revision control."
-        echo svn import $2 ${SVNURL}$2 -m $USERNAME: $COMMENT
-        svn import $2 ${SVNURL}$2 -m "$USERNAME: $COMMENT"
+        [ $VCDEBUG ] && echo Executing "svn import $2 ${SVNURL}$2 -m $USERNAME: $COMMENT"
+        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" import $2 ${SVNURL}$2 -m "$USERNAME: $COMMENT"
         if [ $? != 0 ];then
             echo Error occurs, refer to previous error message for details. 
             exit 1
         fi
-        svn checkout --force ${SVNURL}${DIRNAME} ${DIRNAME}
+        [ $VCDEBUG ] && echo Executing "svn checkout --force ${SVNURL}${DIRNAME} ${DIRNAME}"
+        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" checkout --force ${SVNURL}${DIRNAME} ${DIRNAME}
+        [ $VCDEBUG ] && echo Executing "svn -R ps svn:needs-lock ON $2"
         svn -R ps svn:needs-lock ON $2
-        svn ci $2 -m "$USER: set needs-lock properties."
+        [ $VCDEBUG ] && echo Executing "svn ci $2 -m \"$USER: set needs-lock properties.\""
+        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" ci $2 -m "$USER: set needs-lock properties."
     elif [ "$1" == "add" ]
     then
+        [ $VCDEBUG ] && echo Executing "svn add --parents $2"
         svn add --parents $2
-        svn -R ps svn:needs-lock ON $2
+        [ $VCDEBUG ] && echo Executing "svn -R ps svn:needs-lock ON $2"
+        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" -R ps svn:needs-lock ON $2
         cicomment "Adding $2 to revision control."
-        svn ci $DIRNAME -m "$USERNAME: $COMMENT"
+        [ $VCDEBUG ] && echo Executing "svn ci $DIRNAME -m \"$USERNAME: $COMMENT\""
+        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" ci $DIRNAME -m "$USERNAME: $COMMENT"
     fi
 }
 
 while [ -n "$1" ]; do
-    while getopts ":r:" OPT; do
+    while getopts ":r:u:l" OPT; do
         case $OPT in
+            l)
+                SHOWLOG=1
+                ;;
        	    r)
                 if [ -d $OPTARG ]; then
                     REPO_DIR=`readlink -f $OPTARG`
@@ -72,6 +74,9 @@ while [ -n "$1" ]; do
                     echo Repository directory \"$OPTARG\" cannot found.
                     exit 1
                 fi
+                ;;
+            u)
+                USERNAME=$OPTARG
                 ;;
             \?)
                 echo
@@ -110,12 +115,34 @@ while [ -n "$1" ]; do
     fi
 done
 
-DIRNAME=$(dirname $EDIT_FILE)
-FILE_STATUS=(`svn status $EDIT_FILE -v 2>/dev/null | awk {'print $1,$4'}`)
-if [ -z $FILE_STATUS ]
+if [ $USER == "root" ]
 then
-    echo
-    echo $EDIT_FILE is not under revision control. 
+    if [ -z $USERNAME ]
+    then
+        echo Please enter username, then press [ENTER]:
+        read USERNAME
+    fi
+else
+    USERNAME=$USER
+fi    
+
+if [ $SHOWLOG ]
+then
+    svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" log $EDIT_FILE
+    exit 0
+fi
+
+DIRNAME=$(dirname $EDIT_FILE)
+SVN_STATUS=`svn status $EDIT_FILE -v 2>/dev/null`
+if [ $? != 0 ]
+then
+    echo Unable to retreive SVN status. 
+    exit 1
+fi
+FILE_STATUS=(`echo $SVN_STATUS | awk {'print $1,$4'}`)
+if [ -z $FILE_STATUS ] 
+then
+    echo 
     VALID_RESPONSE=0
     while [ $VALID_RESPONSE == 0 ]
     do
@@ -210,7 +237,8 @@ then
     done
 fi
 
-svn lock $EDIT_FILE
+[ $VCDEBUG ] && echo Executing svn lock $EDIT_FILE
+svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" lock $EDIT_FILE
 if [ $? != 0 ]
 then
     echo Cannot obtain lock on $EDIT_FILE. 
@@ -222,9 +250,11 @@ if [ $NUM_DIFF != 0 ]
 then
     cicomment
     echo $USERNAME: $COMMENT
-    svn ci ${EDIT_FILE} -m "$USERNAME: $COMMENT"
+    [ $VCDEBUG ] && echo Executing "svn ci ${EDIT_FILE} -m \"$USERNAME: $COMMENT\""
+    svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" ci ${EDIT_FILE} -m "$USERNAME: $COMMENT"
 else
     echo No change made on $EDIT_FILE
-    svn unlock $EDIT_FILE
+    [ $VCDEBUG ] && echo Executing "svn unlock $EDIT_FILE"
+    svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" unlock $EDIT_FILE
 fi
 
