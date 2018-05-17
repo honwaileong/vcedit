@@ -4,7 +4,8 @@ trap "echo Process is interrupted; svn unlock $1; exit 255" SIGINT SIGTERM
 
 usage ()
 {
-    echo "Usage: $0 -r <repo_url> <filename>"
+    echo "Usage: vcedit -f <config_file> -r <svn_repo_url> -u <svn_user> <filename>"
+    echo "Usage: vcedit -l <filename>"
     exit 0
 }
 
@@ -20,60 +21,61 @@ cicomment ()
 
 vcinit ()
 {
-    DIRNAME=`dirname $2`   
-    echo $1
+    DIRNAME=`dirname $2`    
+    echo svnrepo is $3
     if [ "$1" == "new" ]
     then
         while true
         do
-            echo Please enter URL of Subversion repository: 
-            read SVNREPO
-            SVNURL=$(svn --config-option config:tunnels:ssh="ssh -l $USERNAME" info $SVNREPO | grep "Repository Root" | awk {'print $3'})
+            if [ ! $SVNREPO ]
+            then
+                echo Please enter URL of Subversion repository: 
+                read SVNREPO
+            fi
+            SVNURL=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info $SVNREPO | grep "Repository Root" | awk {'print $3'})
             if [ -z $SVNURL ];then
                 echo $SVNREPO is not a valid Subversion repository. 
+                unset SVNREPO
             else
                 break
             fi
         done
         cicomment "Initial import of $2 to revision control."
-        [ $VCDEBUG ] && echo Executing "svn import $2 ${SVNURL}$2 -m $USERNAME: $COMMENT"
-        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" import $2 ${SVNURL}$2 -m "$USERNAME: $COMMENT"
+        [ $VCDEBUG ] && echo Executing: "svn import $2 ${SVNURL}/${HOSTNAME}$2 -m $USERNAME: $COMMENT"
+        svn --config-option config:tunnels:ssh="$SSHOPTS" import $2 ${SVNURL}/${HOSTNAME}$2 -m "$USERNAME: $COMMENT"
         if [ $? != 0 ];then
             echo Error occurs, refer to previous error message for details. 
             exit 1
         fi
-        [ $VCDEBUG ] && echo Executing "svn checkout --force ${SVNURL}${DIRNAME} ${DIRNAME}"
-        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" checkout --force ${SVNURL}${DIRNAME} ${DIRNAME}
-        [ $VCDEBUG ] && echo Executing "svn -R ps svn:needs-lock ON $2"
+        [ $VCDEBUG ] && echo Executing: "svn checkout --force ${SVNURL}/${HOSTNAME}${DIRNAME} ${DIRNAME}"
+        svn --config-option config:tunnels:ssh="$SSHOPTS" checkout --force ${SVNURL}/${HOSTNAME}${DIRNAME} ${DIRNAME}
+        [ $VCDEBUG ] && echo Executing: "svn -R ps svn:needs-lock ON $2"
         svn -R ps svn:needs-lock ON $2
-        [ $VCDEBUG ] && echo Executing "svn ci $2 -m \"$USER: set needs-lock properties.\""
-        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" ci $2 -m "$USER: set needs-lock properties."
+        [ $VCDEBUG ] && echo Executing: "svn ci $2 -m \"$USER: set needs-lock properties.\""
+        svn --config-option config:tunnels:ssh="$SSHOPTS" ci $2 -m "$USER: set needs-lock properties."
     elif [ "$1" == "add" ]
     then
-        [ $VCDEBUG ] && echo Executing "svn add --parents $2"
+        [ $VCDEBUG ] && echo Executing: "svn add --parents $2"
         svn add --parents $2
-        [ $VCDEBUG ] && echo Executing "svn -R ps svn:needs-lock ON $2"
-        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" -R ps svn:needs-lock ON $2
+        [ $VCDEBUG ] && echo Executing: "svn -R ps svn:needs-lock ON $2"
+        svn --config-option config:tunnels:ssh="$SSHOPTS" -R ps svn:needs-lock ON $2
         cicomment "Adding $2 to revision control."
-        [ $VCDEBUG ] && echo Executing "svn ci $DIRNAME -m \"$USERNAME: $COMMENT\""
-        svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" ci $DIRNAME -m "$USERNAME: $COMMENT"
+        [ $VCDEBUG ] && echo Executing: "svn ci $DIRNAME -m \"$USERNAME: $COMMENT\""
+        svn --config-option config:tunnels:ssh="$SSHOPTS" ci $DIRNAME -m "$USERNAME: $COMMENT"
     fi
 }
 
 while [ -n "$1" ]; do
-    while getopts ":r:u:l" OPT; do
+    while getopts ":f:lr:u:" OPT; do
         case $OPT in
+            f)
+                CONF=$OPTARG
+                ;;
             l)
-                SHOWLOG=1
+                VCLOG=1
                 ;;
        	    r)
-                if [ -d $OPTARG ]; then
-                    REPO_DIR=`readlink -f $OPTARG`
-                else
-                    echo
-                    echo Repository directory \"$OPTARG\" cannot found.
-                    exit 1
-                fi
+                SVNREPOOPT=$OPTARG
                 ;;
             u)
                 USERNAME=$OPTARG
@@ -95,7 +97,7 @@ while [ -n "$1" ]; do
     done
     if [ $OPTIND == 1 ]; then
         if [ -f $1 ]; then
-            EDIT_FILE=`readlink -f $1`
+            EDIT_FILE=`readlink -f $(dirname $1)`/$(basename $1)
         elif [ -d $1 ]; then
             echo \"$1\" is a directory. 
             exit 1
@@ -103,7 +105,7 @@ while [ -n "$1" ]; do
             NEWFILE=1
             vi $1
             if [ -f $1 ]; then
-                EDIT_FILE=`readlink -f $1`
+                EDIT_FILE=`readlink -f $(dirname $1)`/$(basename $1)
             else
                 exit 0
             fi
@@ -114,6 +116,13 @@ while [ -n "$1" ]; do
         unset OPTIND
     fi
 done
+echo file to edit is $EDIT_FILE
+if [ ! $EDIT_FILE ]
+then
+    echo No file to edit
+    usage
+    exit 1
+fi
 
 if [ $USER == "root" ]
 then
@@ -124,16 +133,34 @@ then
     fi
 else
     USERNAME=$USER
-fi    
+fi
 
-if [ $SHOWLOG ]
+if [ ! $CONF ]
 then
-    svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" log $EDIT_FILE
+    CONF=`dirname $0`/vc.conf
+fi
+
+if [ -f $CONF ]
+    then
+        . $CONF
+    else
+        echo $CONF is not found or is not a file. 
+        exit 1
+fi
+
+if [ $VCLOG ]
+then
+    svn --config-option config:tunnels:ssh="$SSHOPTS" log $EDIT_FILE
     exit 0
 fi
 
+if [ $SVNREPOOPT ]
+then
+    SVNREPO=$SVNREPOOPT
+fi
+
 DIRNAME=$(dirname $EDIT_FILE)
-SVN_STATUS=`svn status $EDIT_FILE -v 2>/dev/null`
+SVN_STATUS=`svn status $EDIT_FILE -v`
 if [ $? != 0 ]
 then
     echo Unable to retreive SVN status. 
@@ -155,7 +182,8 @@ then
                 DIR_STATUS=(`svn status $DIRNAME -v 2>/dev/null`)
                 if [ -z $DIR_STATUS ]
                 then
-                    vcinit new $EDIT_FILE
+                    echo check $SVNREPO
+                    vcinit new $EDIT_FILE $SVNREPO
                 else
                     vcinit add $EDIT_FILE
                 fi
@@ -237,8 +265,8 @@ then
     done
 fi
 
-[ $VCDEBUG ] && echo Executing svn lock $EDIT_FILE
-svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" lock $EDIT_FILE
+[ $VCDEBUG ] && echo Executing: svn lock $EDIT_FILE
+svn --config-option config:tunnels:ssh="$SSHOPTS" lock $EDIT_FILE
 if [ $? != 0 ]
 then
     echo Cannot obtain lock on $EDIT_FILE. 
@@ -250,11 +278,11 @@ if [ $NUM_DIFF != 0 ]
 then
     cicomment
     echo $USERNAME: $COMMENT
-    [ $VCDEBUG ] && echo Executing "svn ci ${EDIT_FILE} -m \"$USERNAME: $COMMENT\""
-    svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" ci ${EDIT_FILE} -m "$USERNAME: $COMMENT"
+    [ $VCDEBUG ] && echo Executing: "svn ci ${EDIT_FILE} -m \"$USERNAME: $COMMENT\""
+    svn --config-option config:tunnels:ssh="$SSHOPTS" ci ${EDIT_FILE} -m "$USERNAME: $COMMENT"
 else
     echo No change made on $EDIT_FILE
-    [ $VCDEBUG ] && echo Executing "svn unlock $EDIT_FILE"
-    svn --config-option config:tunnels:ssh="ssh -l $USERNAME -q" unlock $EDIT_FILE
+    [ $VCDEBUG ] && echo Executing: "svn unlock $EDIT_FILE"
+    svn --config-option config:tunnels:ssh="$SSHOPTS" unlock $EDIT_FILE
 fi
 
