@@ -66,10 +66,16 @@ vcinit ()
 }
 
 while [ -n "$1" ]; do
-    while getopts ":f:lr:u:" OPT; do
+    while getopts ":bf:ilr:u:" OPT; do
         case $OPT in
+            b)
+                VCBROWSE=1
+                ;;
             f)
                 CONF=$OPTARG
+                ;;
+            i)
+                VCINFO=1
                 ;;
             l)
                 VCLOG=1
@@ -116,8 +122,8 @@ while [ -n "$1" ]; do
         unset OPTIND
     fi
 done
-echo file to edit is $EDIT_FILE
-if [ ! $EDIT_FILE ]
+[ $VCDEBUG ] && echo Operating on $EDIT_FILE
+if [ ! $EDIT_FILE ] && [ ! $VCBROWSE ]
 then
     echo No file to edit
     usage
@@ -148,9 +154,11 @@ if [ -f $CONF ]
         exit 1
 fi
 
-if [ $VCLOG ]
+if [ $VCLOG ] || [ $VCINFO ] || [ $VCBROWSE ]
 then
-    svn --config-option config:tunnels:ssh="$SSHOPTS" log $EDIT_FILE
+    [ $VCLOG ] && svn --config-option config:tunnels:ssh="$SSHOPTS" log $EDIT_FILE
+    [ $VCINFO ] && svn --config-option config:tunnels:ssh="$SSHOPTS" info $EDIT_FILE
+    [ $VCBROWSE ] && svn --config-option config:tunnels:ssh="$SSHOPTS" ls $EDIT_FILE
     exit 0
 fi
 
