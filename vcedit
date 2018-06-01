@@ -52,10 +52,10 @@ vcinit ()
         svn info ${SVNURL}/${REPODIR}/${CLASS} > /dev/null 2>&1
         if [ $? == 0 ]; then
             echo
-            echo You are importing new file under a non-version-controlled directory into an existing remote repository. 
-            echo
-            echo Doing so will force checkout files the remote repository to your working directory where files 
-            echo in your working directory could be overwritten by files of the same name from the remote repository. 
+            echo -e "\033[47;31mYou are importing new file under a non-version-controlled directory into an existing remote repository. \033[0m"
+            echo -e "\033[47;31m	\033[0m"
+            echo -e "\033[47;31mDoing so will force checkout files the remote repository to your working directory where files\033[0m"
+            echo -e "\033[47;31min your working directory could be overwritten by files of the same name from the remote repository. \033[0m"
             echo
             VALID_RESPONSE=0
             while [ $VALID_RESPONSE == 0 ]
@@ -238,7 +238,7 @@ then
     echo Unable to retreive SVN status. 
     exit 1
 fi
-FILE_STATUS=(`echo $SVN_STATUS | awk {'print $1,$4'}`)
+FILE_STATUS=(`echo $SVN_STATUS | awk {'print $1,$NF'}`)
 if [ -z $FILE_STATUS ] 
 then
     echo 
