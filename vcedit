@@ -4,8 +4,10 @@ trap "echo Process is interrupted; svn unlock $1; exit 255" SIGINT SIGTERM
 
 usage ()
 {
-    echo "Usage: vcedit -f <config_file> -r <svn_repo_url> -u <svn_user> <filename>"
+    echo "Usage: vcedit -c <class> -d <repodir> -f <config_file> -r <svn_repo_url> -u <svn_user> <filename>"
+    echo "Usage: vcedit -i <filename>"
     echo "Usage: vcedit -l <filename>"
+    echo "Usage: vcedit -v <filename>"
     exit 0
 }
 
@@ -21,8 +23,11 @@ cicomment ()
 
 vcinit ()
 {
-    DIRNAME=`dirname $2`    
-    echo svnrepo is $3
+    if [ ! $REPODIR ]; then
+        REPODIR=$(basename `dirname $2`)
+    fi
+    FILENAME=$(basename $2)
+    echo svn repo is $SVNREPO
     if [ "$1" == "new" ]
     then
         while true
@@ -40,15 +45,52 @@ vcinit ()
                 break
             fi
         done
+        while [ ! $CLASS ]
+        do
+            echo Please enter node class, e.g. login, hostname, etc.:
+            read CLASS
+        done
+        svn info ${SVNURL}/${REPODIR}/${CLASS} > /dev/null 2>&1
+        if [ $? == 0 ]; then
+            echo
+            echo You are importing new file under a non-version-controlled directory into an existing remote repository. 
+            echo
+            echo Doing so will force checkout files the remote repository to your working directory where files 
+            echo in your working directory could be overwritten by files of the same name from the remote repository. 
+            echo
+            VALID_RESPONSE=0
+            while [ $VALID_RESPONSE == 0 ]
+            do
+                echo Do you wish to continue?
+                echo Yes \(Y\)
+                echo No \(N\)
+                read RESPONSE
+                case $RESPONSE in
+                    Y|y|Yes|YES|yes)
+                        VALID_RESPONSE=1
+                        ;;
+                    N|n|No|NO|no)
+                        VALID_RESPONSE=1
+                        exit 0
+                        ;;
+                    *)
+                        echo
+                        echo Please specify "Yes" or "No" as answer only.
+                        echo Please retry.
+                        echo
+                        ;;
+                esac
+            done
+        fi
         cicomment "Initial import of $2 to revision control."
-        [ $VCDEBUG ] && echo Executing: "svn import $2 ${SVNURL}/${HOSTNAME}$2 -m $USERNAME: $COMMENT"
-        svn --config-option config:tunnels:ssh="$SSHOPTS" import $2 ${SVNURL}/${HOSTNAME}$2 -m "$USERNAME: $COMMENT"
+        [ $VCDEBUG ] && echo Executing: "svn import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m $USERNAME: $COMMENT"
+        svn --config-option config:tunnels:ssh="$SSHOPTS" import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m "$USERNAME: $COMMENT"
         if [ $? != 0 ];then
             echo Error occurs, refer to previous error message for details. 
             exit 1
         fi
-        [ $VCDEBUG ] && echo Executing: "svn checkout --force ${SVNURL}/${HOSTNAME}${DIRNAME} ${DIRNAME}"
-        svn --config-option config:tunnels:ssh="$SSHOPTS" checkout --force ${SVNURL}/${HOSTNAME}${DIRNAME} ${DIRNAME}
+        [ $VCDEBUG ] && echo Executing: "svn checkout --force ${SVNURL}/${REPODIR}/${CLASS} ${DIRNAME}"
+        svn --config-option config:tunnels:ssh="$SSHOPTS" checkout --force ${SVNURL}/${REPODIR}/${CLASS} ${DIRNAME}
         [ $VCDEBUG ] && echo Executing: "svn -R ps svn:needs-lock ON $2"
         svn -R ps svn:needs-lock ON $2
         [ $VCDEBUG ] && echo Executing: "svn ci $2 -m \"$USER: set needs-lock properties.\""
@@ -66,10 +108,13 @@ vcinit ()
 }
 
 while [ -n "$1" ]; do
-    while getopts ":bf:ilr:u:" OPT; do
+    while getopts ":c:d:f:ilr:u:v" OPT; do
         case $OPT in
-            b)
-                VCBROWSE=1
+            c)
+                CLASS=$OPTARG
+                ;;
+            d)
+                REPODIR=$OPTARG
                 ;;
             f)
                 CONF=$OPTARG
@@ -78,13 +123,16 @@ while [ -n "$1" ]; do
                 VCINFO=1
                 ;;
             l)
-                VCLOG=1
+                VCLIST=1
                 ;;
        	    r)
                 SVNREPOOPT=$OPTARG
                 ;;
             u)
                 USERNAME=$OPTARG
+                ;;
+            v)
+                VCLOG=1
                 ;;
             \?)
                 echo
@@ -123,11 +171,17 @@ while [ -n "$1" ]; do
     fi
 done
 [ $VCDEBUG ] && echo Operating on $EDIT_FILE
-if [ ! $EDIT_FILE ] && [ ! $VCBROWSE ]
+if [ ! $EDIT_FILE ]
 then
     echo No file to edit
-    usage
-    exit 1
+    if [ $VCLIST ]
+    then
+        echo Listing files under `svn info | grep "Relative URL" | awk {'print $NF'}`
+        svn --config-option config:tunnels:ssh="$SSHOPTS" ls -v -R $EDIT_FILE
+    else
+        usage
+        exit 1
+    fi
 fi
 
 if [ $USER == "root" ]
@@ -154,11 +208,11 @@ if [ -f $CONF ]
         exit 1
 fi
 
-if [ $VCLOG ] || [ $VCINFO ] || [ $VCBROWSE ]
+if [ $VCLOG ] || [ $VCINFO ] || [ $VCLIST ]
 then
     [ $VCLOG ] && svn --config-option config:tunnels:ssh="$SSHOPTS" log $EDIT_FILE
     [ $VCINFO ] && svn --config-option config:tunnels:ssh="$SSHOPTS" info $EDIT_FILE
-    [ $VCBROWSE ] && svn --config-option config:tunnels:ssh="$SSHOPTS" ls $EDIT_FILE
+    [ $VCLIST ] && [ $EDIT_FILE ] && svn --config-option config:tunnels:ssh="$SSHOPTS" ls -R -v $EDIT_FILE
     exit 0
 fi
 
@@ -191,7 +245,7 @@ then
                 if [ -z $DIR_STATUS ]
                 then
                     echo check $SVNREPO
-                    vcinit new $EDIT_FILE $SVNREPO
+                    vcinit new $EDIT_FILE
                 else
                     vcinit add $EDIT_FILE
                 fi
