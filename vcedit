@@ -82,7 +82,7 @@ vcinit ()
             done
         fi
         cicomment "Initial import of $2 to revision control."
-        [ $VCDEBUG ] && echo Executing: "svn import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m $USERNAME: $COMMENT"
+        [ $VCDEBUG ] && echo Executing: "svn import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m \"$USERNAME: $COMMENT\""
         svn --config-option config:tunnels:ssh="$SSHOPTS" import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m "$USERNAME: $COMMENT"
         if [ $? != 0 ];then
             echo Error occurs, refer to previous error message for details. 
@@ -107,7 +107,7 @@ vcinit ()
 }
 
 while [ -n "$1" ]; do
-    while getopts ":c:d:f:ilr:u:v" OPT; do
+    while getopts ":c:d:f:hilr:u:v" OPT; do
         case $OPT in
             c)
                 CLASS=$OPTARG
@@ -117,6 +117,9 @@ while [ -n "$1" ]; do
                 ;;
             f)
                 CONF=$OPTARG
+                ;;
+            h)
+                usage && exit 0
                 ;;
             i)
                 VCINFO=1
@@ -202,7 +205,7 @@ fi
 if [ ! $EDIT_FILE ]
 then
     echo No file to edit
-    if [ $VCLIST ] || [ $VCINFO ] || [ $VCLIST ]
+    if [ $VCLIST ] || [ $VCINFO ] || [ $VCLOG ]
     then
         svn info > /dev/null 
         [ $? == 0 ] || exit 1
@@ -275,6 +278,27 @@ then
                 ;;
         esac
     done
+else
+    if [ $CLASS ]
+    then
+        SVNURL=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Repository Root" | awk {'print $NF'}) 
+        REPODIR=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Relative URL" | awk {'print $NF'} | awk -F '/' {'print $2'})
+        svn info $SVNURL/$REPODIR/$CLASS 2>/dev/null
+        if [ $? == 0 ]
+        then
+            [ $VCDEBUG ] && echo Executing: "svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry"
+            svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry
+        else
+            REPOCLASS=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Relative URL" | awk {'print $NF'} | awk -F '/' {'print $3'})
+            cicomment "Branching $REPOCLASS to $CLASS"
+            [ $VCDEBUG ] && echo Executing: "svn copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m \"$USERNAME: $COMMENT\""
+            svn --config-option config:tunnels:ssh="$SSHOPTS" copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m "$USERNAME: $COMMENT"
+            [ $VCDEBUG ] && echo Executing: "svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry"
+            svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry
+        fi
+    fi
+fi
+<<DEPRECATED
 elif [ "${FILE_STATUS[0]}" == "K" ]
 then
     echo File \"$EDIT_FILE\" is currently locked and being edited by user \"${FILE_STATUS[1]}\". 
@@ -336,6 +360,70 @@ then
         esac
     done
 fi
+DEPRECATED
+
+case ${FILE_STATUS[0]} in
+    K)
+        echo File \"$EDIT_FILE\" is currently locked and being edited by user \"${FILE_STATUS[1]}\".
+        exit 1
+        ;;
+    \?)
+        echo File \"$EDIT_FILE\" is not under revision control.
+        VALID_RESPONSE=0
+        while [ $VALID_RESPONSE == 0 ]
+        do
+            echo Would you like to add the file \"$EDIT_FILE\" to revision control?
+            echo Yes \(Y\) No \(N\)
+            read RESPONSE
+            case $RESPONSE in
+                Y|y|Yes|YES|yes)
+                    VALID_RESPONSE=1
+                    vcinit add $EDIT_FILE
+                    ;;
+                N|n|No|NO|no)
+                    VALID_RESPONSE=1
+                    [[ ! $NEWFILE ]] && vi $EDIT_FILE
+                    exit 0
+                    ;;
+                *)
+                    echo
+                    echo Please specify "Yes" or "No" as answer only.
+                    echo Please retry.
+                    echo
+                    ;;
+            esac
+        done
+        ;;
+    M)
+        while true
+        do
+            echo File \"$EDIT_FILE\" has been modified but changes are not committed.
+            echo Would you like to discard the changes and proceed to edit the file?
+            echo Would you like to view the changes since the last commit?
+            echo Would you like to include the changes and proceed to edit the file?
+            echo Discard \(D\), View \(V\), Include \(I\)
+            read RESPONSE
+            case $RESPONSE in
+                D)
+                    svn revert $EDIT_FILE
+                    break
+                    ;;
+                V)
+                    svn diff $EDIT_FILE
+                    ;;
+                I)
+                    break
+                    ;;
+                *)
+                    echo
+                    echo Please specify "D", "V" or "I" as answer only.
+                    echo Please retry.
+                    echo
+                    ;;
+            esac
+        done
+        ;;
+esac
 
 [ $VCDEBUG ] && echo Executing: svn lock $EDIT_FILE
 svn --config-option config:tunnels:ssh="$SSHOPTS" lock $EDIT_FILE
