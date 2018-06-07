@@ -3,17 +3,18 @@
 
 usage ()
 {
-    echo "Usage: vcedit -c <class> -d <repodir> -f <config_file> -r <svn_repo_url> -u <svn_user> <filename>"
-    echo "Usage: vcedit -i <filename>"
-    echo "Usage: vcedit -l <filename>"
-    echo "Usage: vcedit -v <filename>"
+    echo -e "\033[34mUsage: vcedit -d <repodir> -f <config_file> -r <svn_repo_url> -u <svn_user> <filename> \033[0m"
+    echo -e "\033[34mUsage: vcedit -c <class> \033[0m"
+    echo -e "\033[34mUsage: vcedit -i <filename> \033[0m"
+    echo -e "\033[34mUsage: vcedit -l <filename> \033[0m"
+    echo -e "\033[34mUsage: vcedit -v <filename> \033[0m"
     exit 0
 }
 
 cicomment ()
 {
     if [[ -z $1 ]];then
-        echo Please enter a single line comment for changes made to "${EDIT_FILE}", then press [ENTER]:
+        echo -e "\033[34mPlease enter a single line comment for changes made to \033[31m${EDIT_FILE}\033[34m, then press [ENTER]: \033[0m"
         read COMMENT
     else
         COMMENT="$1"
@@ -22,23 +23,24 @@ cicomment ()
 
 vcinit ()
 {
-    if [ ! $REPODIR ]; then
-        REPODIR=$(basename `dirname $2`)
-    fi
+    while [ ! $REPODIR ]
+    do
+        echo -e "\033[34mPlease enter a new name for the remote repo directory: \033[0m"
+        read REPODIR
+    done
     FILENAME=$(basename $2)
-    echo svn repo is $SVNREPO
     if [ "$1" == "new" ]
     then
         while true
         do
             if [ ! $SVNREPO ]
             then
-                echo Please enter URL of Subversion repository: 
+                echo -e "\033[34mPlease enter URL of Subversion repository: \033[0m"
                 read SVNREPO
             fi
             SVNURL=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info $SVNREPO | grep "Repository Root" | awk {'print $3'})
             if [ -z $SVNURL ];then
-                echo $SVNREPO is not a valid Subversion repository. 
+                echo -e "\033[31m$SVNREPO is not a valid Subversion repository. \033[0m"
                 unset SVNREPO
             else
                 break
@@ -46,23 +48,23 @@ vcinit ()
         done
         while [ ! $CLASS ]
         do
-            echo Please enter node class, e.g. login, hostname, etc.:
+            echo -e "\033[34mPlease enter node class, e.g. login, hostname, etc.: \033[0m"
             read CLASS
         done
         svn info ${SVNURL}/${REPODIR}/${CLASS} > /dev/null 2>&1
         if [ $? == 0 ]; then
             echo
-            echo -e "\033[47;31mYou are importing new file under a non-version-controlled directory into an existing remote repository. \033[0m"
-            echo -e "\033[47;31m	\033[0m"
-            echo -e "\033[47;31mDoing so will force checkout files the remote repository to your working directory where files\033[0m"
-            echo -e "\033[47;31min your working directory could be overwritten by files of the same name from the remote repository. \033[0m"
+            echo -e "\033[31mYou are importing new file under a non-version-controlled directory into an existing remote repository. \033[0m"
+            echo -e "\033[31m	\033[0m"
+            echo -e "\033[31mDoing so will force checkout files the remote repository to your working directory where files\033[0m"
+            echo -e "\033[31min your working directory could be overwritten by files of the same name from the remote repository. \033[0m"
             echo
             VALID_RESPONSE=0
             while [ $VALID_RESPONSE == 0 ]
             do
-                echo Do you wish to continue?
-                echo Yes \(Y\)
-                echo No \(N\)
+                echo -e "\033[34mDo you wish to continue? \033[0m"
+                echo -e "\033[34mYes \(Y\) \033[0m"
+                echo -e "\033[34mNo \(N\) \033[0m"
                 read RESPONSE
                 case $RESPONSE in
                     Y|y|Yes|YES|yes)
@@ -74,34 +76,34 @@ vcinit ()
                         ;;
                     *)
                         echo
-                        echo Please specify "Yes" or "No" as answer only.
-                        echo Please retry.
+                        echo -e "\033[31mPlease specify \033[47;31mYes\033[31m or \033[47;31mNo\033[31m as answer only. \033[0m"
+                        echo -e "\033[31mPlease retry. \033[0m"
                         echo
                         ;;
                 esac
             done
         fi
         cicomment "Initial import of $2 to revision control."
-        [ $VCDEBUG ] && echo Executing: "svn import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m \"$USERNAME: $COMMENT\""
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m \"$USERNAME: $COMMENT\" \033[0m"
         svn --config-option config:tunnels:ssh="$SSHOPTS" import $2 ${SVNURL}/${REPODIR}/${CLASS}/${FILENAME} -m "$USERNAME: $COMMENT"
         if [ $? != 0 ];then
-            echo Error occurs, refer to previous error message for details. 
+            echo -e "\033[31mError occurs, refer to previous error message for details. \033[0m"
             exit 1
         fi
-        [ $VCDEBUG ] && echo Executing: "svn checkout --force ${SVNURL}/${REPODIR}/${CLASS} ${DIRNAME}"
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn checkout --force ${SVNURL}/${REPODIR}/${CLASS} ${DIRNAME} \033[0m"
         svn --config-option config:tunnels:ssh="$SSHOPTS" checkout --force ${SVNURL}/${REPODIR}/${CLASS} ${DIRNAME}
-        [ $VCDEBUG ] && echo Executing: "svn -R ps svn:needs-lock ON $2"
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn -R ps svn:needs-lock ON $2 \033[0m"
         svn -R ps svn:needs-lock ON $2
-        [ $VCDEBUG ] && echo Executing: "svn ci $2 -m \"$USER: set needs-lock properties.\""
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn ci $2 -m \"$USER: set needs-lock properties.\" \033[0m"
         svn --config-option config:tunnels:ssh="$SSHOPTS" ci $2 -m "$USER: set needs-lock properties."
     elif [ "$1" == "add" ]
     then
-        [ $VCDEBUG ] && echo Executing: "svn add --parents $2"
+        [ $VCDEBUG ] && echo echo -e "\033[34mExecuting: svn add --parents $2 \033[0m"
         svn add --parents $2
-        [ $VCDEBUG ] && echo Executing: "svn -R ps svn:needs-lock ON $2"
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn -R ps svn:needs-lock ON $2 \033[0m"
         svn --config-option config:tunnels:ssh="$SSHOPTS" -R ps svn:needs-lock ON $2
         cicomment "Adding $2 to revision control."
-        [ $VCDEBUG ] && echo Executing: "svn ci $DIRNAME -m \"$USERNAME: $COMMENT\""
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn ci $DIRNAME -m \"$USERNAME: $COMMENT\" \033[0m"
         svn --config-option config:tunnels:ssh="$SSHOPTS" ci $DIRNAME -m "$USERNAME: $COMMENT"
     fi
 }
@@ -138,12 +140,12 @@ while [ -n "$1" ]; do
                 ;;
             \?)
                 echo
-                echo Invalid option -$OPTARG.
+                echo -e "\033[34mInvalid option -$OPTARG. \033[0m"
                 usage
                 ;;
             :)
                 echo
-                echo Missing argument for -$OPTARG.
+                echo -e "\033[34mMissing argument for -$OPTARG. \033[0m"
                 usage
                 ;;
             *)
@@ -152,19 +154,24 @@ while [ -n "$1" ]; do
         esac
     done
     if [ $OPTIND == 1 ]; then
-        if [ -f $1 ]; then
-            EDIT_FILE=`readlink -f $(dirname $1)`/$(basename $1)
-        elif [ -d $1 ]; then
-            echo \"$1\" is a directory. 
-            exit 1
+        if [ -e $1 ]
+        then
+            if [ -f $1 ]; then
+                EDIT_FILE=`readlink -f $(dirname $1)`/$(basename $1)
+            elif [ -d $1 ]; then
+                echo -e "\033[31m\"$1\" is a directory. \033[0m"
+                exit 1
+            fi
         else
-            NEWFILE=1
+            NEWFILE=$1
+<<DEPRECATED
             vi $1
             if [ -f $1 ]; then
                 EDIT_FILE=`readlink -f $(dirname $1)`/$(basename $1)
             else
                 exit 0
             fi
+DEPRECATED
         fi
         shift
     else
@@ -173,13 +180,14 @@ while [ -n "$1" ]; do
     fi
 done
 
+
 trap "echo Process is interrupted; echo reverting changes made to $EDIT_FILE; svn revert $EDIT_FILE; exit 255" SIGINT SIGTERM
 
 if [ $USER == "root" ]
 then
     if [ -z $USERNAME ]
     then
-        echo Please enter username, then press [ENTER]:
+        echo -e "\033[34mPlease enter username, then press [ENTER]: \033[0m"
         read USERNAME
     fi
 else
@@ -195,13 +203,86 @@ if [ -f $CONF ]
     then
         . $CONF
     else
-        echo $CONF is not found or is not a file. 
+        echo -e "\033[31m$CONF is not found or is not a file. \033[0m"
         exit 1
 fi
-
 [ "$SSHOPTS" ] || SSHOPTS="$SVN_SSH ssh -q"
+if [ $CLASS ]  
+then
+    if [ $NEWFILE ] || [ $EDIT_FILE ]
+    then
+        echo -e "\033[31m-c option cannot be used to operate on a file \033[0m" 
+        exit 1
+    else
+        svn status >/dev/null
+        [ $? == 0 ] || exit 1
+        SVNURL=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Repository Root" | awk {'print $NF'})
+        REPODIR=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Relative URL" | awk {'print $NF'} | awk -F '/' {'print $2'})
+        svn --config-option config:tunnels:ssh="$SSHOPTS" info $SVNURL/$REPODIR/$CLASS 2>/dev/null
+        if [ $? == 0 ]
+        then
+            echo -e "\033[34mChanges will be made to the following files after switching to $CLASS class: \033[0m"
+            if [ ! $VCVERBOSE ]
+            then
+                [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn diff --summarize . $SVNURL/$REPODIR/$CLASS \033[0m"
+                svn --config-option config:tunnels:ssh="$SSHOPTS" diff --summarize . $SVNURL/$REPODIR/$CLASS
+                echo
+                echo -e "\033[34mFor more information, please set VCVERBOSE=1 environment variable and rerun the command. \033[0m"
+            else
+                [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn diff . $SVNURL/$REPODIR/$CLASS \033[0m"
+                svn --config-option config:tunnels:ssh="$SSHOPTS" diff . $SVNURL/$REPODIR/$CLASS
+            fi
+            VALID_RESPONSE=0
+            while [ $VALID_RESPONSE == 0 ]
+            do
+                echo -e "\033[34mDo you wish to continue? \033[0m"
+                echo -e "\033[34mYes \(Y\) \033[0m"
+                echo -e "\033[34mNo \(N\) \033[0m"
+                read RESPONSE
+                case $RESPONSE in
+                    Y|y|Yes|YES|yes)
+                        VALID_RESPONSE=1
+                        ;;
+                    N|n|No|NO|no)
+                        VALID_RESPONSE=1
+                        exit 0
+                        ;;
+                    *)
+                        echo
+                        echo -e "\033[34mPlease specify \"Yes\" or \"No\" as answer only. \033[0m"
+                        echo -e "\033[34mPlease retry. \033[0m"
+                        echo
+                        ;;
+                esac
+            done
+            echo -e "\033[34mSwitching to $CLASS class. \033[0m"
+            [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry \033[0m"
+            svn --config-option config:tunnels:ssh="$SSHOPTS" switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry
+        else
+            REPOCLASS=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Relative URL" | awk {'print $NF'} | awk -F '/' {'print $3'})
+            cicomment "Branching $REPOCLASS to $CLASS"
+            echo -e "\033[34mBranching $CLASS class. \033[0m"
+            [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m \"$USERNAME: $COMMENT\" \033[0m"
+            svn --config-option config:tunnels:ssh="$SSHOPTS" copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m "$USERNAME: $COMMENT" 
+            echo -e "\033[34mSwitching to $CLASS class. \033[0m"
+            [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry \033[0m"
+            svn --config-option config:tunnels:ssh="$SSHOPTS" switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry
+        fi
+        exit 0
+    fi
+fi
 
-[ $VCDEBUG ] && echo Operating on $EDIT_FILE
+if [ $NEWFILE ] 
+then
+    vi $NEWFILE
+    if [ -f $NEWFILE ]
+    then
+        EDIT_FILE=`readlink -f $(dirname $NEWFILE)`/$(basename $NEWFILE)
+    else
+        exit 0
+    fi
+fi
+
 if [ ! $EDIT_FILE ]
 then
     echo No file to edit
@@ -210,9 +291,9 @@ then
         svn info > /dev/null 
         [ $? == 0 ] || exit 1
         REPOURL=`svn info | grep "Relative URL" | awk {'print $NF'}`
-        [ $VCLIST ] && echo Listing files under $REPOURL && svn --config-option config:tunnels:ssh="$SSHOPTS" ls -v -R `svn info | grep ^URL | awk {'print $NF'}`
-        [ $VCINFO ] && echo Showing info of $REPOURL && svn --config-option config:tunnels:ssh="$SSHOPTS" info
-        [ $VCLOG ] && echo Showing changelog of $REPOURL && svn --config-option config:tunnels:ssh="$SSHOPTS" log -v
+        [ $VCLIST ] && echo -e "\033[34mListing files under $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" ls -v -R `svn info | grep ^URL | awk {'print $NF'}`
+        [ $VCINFO ] && echo -e "\033[34mShowing info of $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" info
+        [ $VCLOG ] && echo -e "\033[34mShowing changelog of $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" log -v
         exit 0
     else    
         usage
@@ -220,6 +301,7 @@ then
     fi
 fi
 
+[ $VCDEBUG ] && echo -e "\033[34mOperating on $EDIT_FILE \033[0m"
 if [ $VCLOG ] || [ $VCINFO ] || [ $VCLIST ]
 then
     [ $VCLOG ] && svn --config-option config:tunnels:ssh="$SSHOPTS" log -v $EDIT_FILE
@@ -241,15 +323,16 @@ then
     echo Unable to retreive SVN status. 
     exit 1
 fi
-FILE_STATUS=(`echo $SVN_STATUS | awk {'print $1,$NF'}`)
+FILE_STATUS=(`svn status $EDIT_FILE -v | awk {'print $1,$NF'}`)
+#echo file status is ${FILE_STATUS[0]}
 if [ -z $FILE_STATUS ] 
 then
     echo 
     VALID_RESPONSE=0
     while [ $VALID_RESPONSE == 0 ]
     do
-        echo Would you like to add the file $EDIT_FILE to revision control?
-        echo Yes \(Y\) No \(N\)
+        echo -e "\033[34mWould you like to add the file $EDIT_FILE to revision control? \033[0m"
+        echo -e "\033[34mYes \(Y\) No \(N\) \033[0m"
         read RESPONSE
         case $RESPONSE in
             Y|y|Yes|YES|yes)
@@ -257,7 +340,6 @@ then
                 DIR_STATUS=(`svn status $DIRNAME -v 2>/dev/null`)
                 if [ -z $DIR_STATUS ]
                 then
-                    echo check $SVNREPO
                     vcinit new $EDIT_FILE
                 else
                     vcinit add $EDIT_FILE
@@ -265,38 +347,17 @@ then
                 ;;
             N|n|No|NO|no)
                 VALID_RESPONSE=1
-                echo
                 [[ ! $NEWFILE ]] && vi $EDIT_FILE 
-                echo
                 exit 0
                 ;;
             *)
                 echo
-                echo Please specify "Yes" or "No" as answer only.
-                echo Please retry.
+                echo -e "\033[34mPlease specify "Yes" or "No" as answer only. \033[0m"
+                echo -e "\033[34mPlease retry. \033[0m"
                 echo
                 ;;
         esac
     done
-else
-    if [ $CLASS ]
-    then
-        SVNURL=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Repository Root" | awk {'print $NF'}) 
-        REPODIR=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Relative URL" | awk {'print $NF'} | awk -F '/' {'print $2'})
-        svn info $SVNURL/$REPODIR/$CLASS 2>/dev/null
-        if [ $? == 0 ]
-        then
-            [ $VCDEBUG ] && echo Executing: "svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry"
-            svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry
-        else
-            REPOCLASS=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Relative URL" | awk {'print $NF'} | awk -F '/' {'print $3'})
-            cicomment "Branching $REPOCLASS to $CLASS"
-            [ $VCDEBUG ] && echo Executing: "svn copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m \"$USERNAME: $COMMENT\""
-            svn --config-option config:tunnels:ssh="$SSHOPTS" copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m "$USERNAME: $COMMENT"
-            [ $VCDEBUG ] && echo Executing: "svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry"
-            svn switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry
-        fi
-    fi
 fi
 <<DEPRECATED
 elif [ "${FILE_STATUS[0]}" == "K" ]
@@ -361,19 +422,19 @@ then
     done
 fi
 DEPRECATED
-
+#echo ${FILE_STATUS[0]}
 case ${FILE_STATUS[0]} in
     K)
-        echo File \"$EDIT_FILE\" is currently locked and being edited by user \"${FILE_STATUS[1]}\".
+        echo -e "\033[34mFile \"$EDIT_FILE\" is currently locked and being edited by user \"${FILE_STATUS[1]}\". \033[0m"
         exit 1
         ;;
     \?)
-        echo File \"$EDIT_FILE\" is not under revision control.
+        echo -e "\033[34mFile \"$EDIT_FILE\" is not under revision control. \033[0m"
         VALID_RESPONSE=0
         while [ $VALID_RESPONSE == 0 ]
         do
-            echo Would you like to add the file \"$EDIT_FILE\" to revision control?
-            echo Yes \(Y\) No \(N\)
+            echo -e "\033[34mWould you like to add the file \"$EDIT_FILE\" to revision control? \033[0m"
+            echo -e "\033[34mYes \(Y\) No \(N\) \033[0m"
             read RESPONSE
             case $RESPONSE in
                 Y|y|Yes|YES|yes)
@@ -387,8 +448,8 @@ case ${FILE_STATUS[0]} in
                     ;;
                 *)
                     echo
-                    echo Please specify "Yes" or "No" as answer only.
-                    echo Please retry.
+                    echo -e "\033[34mPlease specify "Yes" or "No" as answer only. \033[0m"
+                    echo -e "\033[34mPlease retry. \033[0m"
                     echo
                     ;;
             esac
@@ -397,11 +458,11 @@ case ${FILE_STATUS[0]} in
     M)
         while true
         do
-            echo File \"$EDIT_FILE\" has been modified but changes are not committed.
-            echo Would you like to discard the changes and proceed to edit the file?
-            echo Would you like to view the changes since the last commit?
-            echo Would you like to include the changes and proceed to edit the file?
-            echo Discard \(D\), View \(V\), Include \(I\)
+            echo "\033[34mFile \"$EDIT_FILE\" has been modified but changes are not committed. \033[0m"
+            echo "\033[34mWould you like to discard the changes and proceed to edit the file? \033[0m"
+            echo "\033[34mWould you like to view the changes since the last commit? \033[0m"
+            echo "\033[34mWould you like to include the changes and proceed to edit the file? \033[0m"
+            echo "\033[34mDiscard \(D\), View \(V\), Include \(I\) \033[0m"
             read RESPONSE
             case $RESPONSE in
                 D)
@@ -416,8 +477,8 @@ case ${FILE_STATUS[0]} in
                     ;;
                 *)
                     echo
-                    echo Please specify "D", "V" or "I" as answer only.
-                    echo Please retry.
+                    echo "\033[34mPlease specify \"D\", \"V\" or \"I\" as answer only. \033[0m"
+                    echo "\033[34mPlease retry. \033[0m"
                     echo
                     ;;
             esac
@@ -425,11 +486,11 @@ case ${FILE_STATUS[0]} in
         ;;
 esac
 
-[ $VCDEBUG ] && echo Executing: svn lock $EDIT_FILE
+[ $VCDEBUG ] && echo "\033[34mExecuting: svn lock $EDIT_FILE \033[0m"
 svn --config-option config:tunnels:ssh="$SSHOPTS" lock $EDIT_FILE
 if [ $? != 0 ]
 then
-    echo Cannot obtain lock on $EDIT_FILE. 
+    echo "\033[34mCannot obtain lock on $EDIT_FILE. \033[0m"
     svn revert $EDIT_FILE
     exit 1
 fi
@@ -439,11 +500,11 @@ if [ $NUM_DIFF != 0 ]
 then
     cicomment
     echo $USERNAME: $COMMENT
-    [ $VCDEBUG ] && echo Executing: "svn ci ${EDIT_FILE} -m \"$USERNAME: $COMMENT\""
-    svn --config-option config:tunnels:ssh="$SSHOPTS" ci ${EDIT_FILE} -m "$USERNAME: $COMMENT"
+    [ $VCDEBUG ] && echo "\033[34mExecuting: svn ci ${EDIT_FILE} -m \"$USERNAME: $COMMENT\" \033[0m"
+    svn --config-option config:tunnels:ssh="$SSHOPTS" ci ${EDIT_FILE} -m "$USERNAME: $COMMENT" 
 else
-    echo No change made on $EDIT_FILE
-    [ $VCDEBUG ] && echo Executing: "svn unlock $EDIT_FILE"
+    echo "\033[34mNo change made on $EDIT_FILE \033[0m"
+    [ $VCDEBUG ] && echo "\033[34mExecuting: svn unlock $EDIT_FILE \033[0m"
     svn --config-option config:tunnels:ssh="$SSHOPTS" unlock $EDIT_FILE
 fi
 
