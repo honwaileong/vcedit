@@ -23,14 +23,14 @@ cicomment ()
 
 vcinit ()
 {
-    while [ ! $REPODIR ]
-    do
-        echo -e "\033[34mPlease enter a new name for the remote repo directory: \033[0m"
-        read REPODIR
-    done
     FILENAME=$(basename $2)
     if [ "$1" == "new" ]
     then
+        while [ ! $REPODIR ]
+        do
+            echo -e "\033[34mPlease enter a new name for the remote repo directory: \033[0m"
+            read REPODIR
+        done
         while true
         do
             if [ ! $SVNREPO ]
@@ -503,7 +503,7 @@ then
     [ $VCDEBUG ] && echo "\033[34mExecuting: svn ci ${EDIT_FILE} -m \"$USERNAME: $COMMENT\" \033[0m"
     svn --config-option config:tunnels:ssh="$SSHOPTS" ci ${EDIT_FILE} -m "$USERNAME: $COMMENT" 
 else
-    echo "\033[34mNo change made on $EDIT_FILE \033[0m"
+    echo -e "\033[34mNo change made on $EDIT_FILE \033[0m"
     [ $VCDEBUG ] && echo "\033[34mExecuting: svn unlock $EDIT_FILE \033[0m"
     svn --config-option config:tunnels:ssh="$SSHOPTS" unlock $EDIT_FILE
 fi
