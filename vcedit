@@ -490,7 +490,7 @@ esac
 svn --config-option config:tunnels:ssh="$SSHOPTS" lock $EDIT_FILE
 if [ $? != 0 ]
 then
-    echo "\033[34mCannot obtain lock on $EDIT_FILE. \033[0m"
+    echo -e "\033[34mCannot obtain lock on $EDIT_FILE. \033[0m"
     svn revert $EDIT_FILE
     exit 1
 fi
