@@ -323,7 +323,7 @@ then
     echo Unable to retreive SVN status. 
     exit 1
 fi
-FILE_STATUS=(`svn status $EDIT_FILE -v | awk {'print $1,$NF'}`)
+FILE_STATUS=(`svn status $EDIT_FILE -v | awk {'print $1,$4'}`)
 #echo file status is ${FILE_STATUS[0]}
 if [ -z $FILE_STATUS ] 
 then
