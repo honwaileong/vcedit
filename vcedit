@@ -51,7 +51,7 @@ vcinit ()
             echo -e "\033[34mPlease enter node class, e.g. login, hostname, etc.: \033[0m"
             read CLASS
         done
-        svn info ${SVNURL}/${REPODIR}/${CLASS} > /dev/null 2>&1
+        svn --config-option config:tunnels:ssh="$SSHOPTS" info ${SVNURL}/${REPODIR}/${CLASS} > /dev/null 2>&1
         if [ $? == 0 ]; then
             echo
             echo -e "\033[31mYou are importing new file under a non-version-controlled directory into an existing remote repository. \033[0m"
