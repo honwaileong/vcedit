@@ -274,12 +274,41 @@ fi
 
 if [ $NEWFILE ] 
 then
-    vi $NEWFILE
-    if [ -f $NEWFILE ]
+    if [ ! `svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $NEWFILE | awk {'print $NF'} | grep $NEWFILE` ] 
     then
-        EDIT_FILE=`readlink -f $(dirname $NEWFILE)`/$(basename $NEWFILE)
+        vi $NEWFILE
+        if [ -f $NEWFILE ]
+        then
+            EDIT_FILE=`readlink -f $(dirname $NEWFILE)`/$(basename $NEWFILE)
+        else
+            exit 0
+    fi
     else
-        exit 0
+        echo -e "\033[34mAn existing file of the same name exists on the repository. The file will be exported to current working directory before editing. \033[0m"
+        while [ $VALID_RESPONSE == 0 ]
+        do
+            echo -e "\033[34mDo you wish to continue? \033[0m"
+            echo -e "\033[34mYes \(Y\) \033[0m"
+            echo -e "\033[34mNo \(N\) \033[0m"
+            read RESPONSE
+            case $RESPONSE in
+                Y|y|Yes|YES|yes)
+                    VALID_RESPONSE=1
+                    ;;
+                N|n|No|NO|no)
+                    VALID_RESPONSE=1
+                    exit 0
+                    ;;
+                *)
+                    echo
+                    echo -e "\033[31mPlease specify \033[47;31mYes\033[31m or \033[47;31mNo\033[31m as answer only. \033[0m"
+                    echo -e "\033[31mPlease retry. \033[0m"
+                    echo
+                    ;;
+            esac
+        done
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn update $NEWFILE \033[0m"
+        svn --config-option config:tunnels:ssh="$SSHOPTS" update $NEWFILE
     fi
 fi
 
@@ -323,7 +352,7 @@ then
     echo Unable to retreive SVN status. 
     exit 1
 fi
-FILE_STATUS=(`svn status $EDIT_FILE -v | awk {'print $1,$4'}`)
+FILE_STATUS=(`svn status $EDIT_FILE -v | awk {'print $1,$NF'}`)
 #echo file status is ${FILE_STATUS[0]}
 if [ -z $FILE_STATUS ] 
 then
