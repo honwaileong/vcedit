@@ -356,7 +356,7 @@ then
     exit 1
 fi
 FILE_STATUS=`svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $EDIT_FILE | grep $EDIT_FILE`
-if [ -z $FILE_STATUS ] 
+if [ -z "$FILE_STATUS" ] 
 then
     echo 
     VALID_RESPONSE=0
