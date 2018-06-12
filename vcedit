@@ -355,7 +355,7 @@ then
     echo Unable to retreive SVN status. 
     exit 1
 fi
-FILE_STATUS=(`svn --config-option config:tunnels:ssh="$SSHOPTS" status -v $EDIT_FILE | awk {'print $1,$NF'}`)
+FILE_STATUS=($(echo \\`svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $EDIT_FILE | grep $EDIT_FILE | awk {'print $1,$NF'}`))
 echo file $EDIT_FILE status is "${FILE_STATUS[0]}"
 if [ -z $FILE_STATUS ] 
 then
@@ -456,11 +456,11 @@ fi
 DEPRECATED
 #echo ${FILE_STATUS[0]}
 case ${FILE_STATUS[0]} in
-    K)
+    \\K)
         echo -e "\033[34mFile \"$EDIT_FILE\" is currently locked and being edited by user \"${FILE_STATUS[1]}\". \033[0m"
         exit 1
         ;;
-    \?)
+    \\?)
         echo -e "\033[34mFile \"$EDIT_FILE\" is not under revision control. \033[0m"
         VALID_RESPONSE=0
         while [ $VALID_RESPONSE == 0 ]
@@ -487,7 +487,7 @@ case ${FILE_STATUS[0]} in
             esac
         done
         ;;
-    M)
+    \\M)
         while true
         do
             echo -e "\033[34mFile \"$EDIT_FILE\" has been modified but changes are not committed. \033[0m"
@@ -516,6 +516,33 @@ case ${FILE_STATUS[0]} in
             esac
         done
         ;;
+    \\*)
+        echo -e "\033[34mAn existing file of the same name exists on the repository. The file will be exported to current working directory before editing. \033[0m"
+        VALID_RESPONSE=0
+        while [ $VALID_RESPONSE == 0 ]
+        do
+            echo -e "\033[34mDo you wish to continue? \033[0m"
+            echo -e "\033[34mYes (Y) \033[0m"
+            echo -e "\033[34mNo (N) \033[0m"
+            read RESPONSE
+            case $RESPONSE in
+                Y|y|Yes|YES|yes)
+                    VALID_RESPONSE=1
+                    ;;
+                N|n|No|NO|no)
+                    VALID_RESPONSE=1
+                    exit 0
+                    ;;
+                *)
+                    echo
+                    echo -e "\033[31mPlease specify \033[47;31mYes\033[31m or \033[47;31mNo\033[31m as answer only. \033[0m"
+                    echo -e "\033[31mPlease retry. \033[0m"
+                    echo
+                    ;;
+            esac
+        done
+        [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn update $NEWFILE \033[0m"
+        svn --config-option config:tunnels:ssh="$SSHOPTS" update $NEWFILE
 esac
 
 [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn lock $EDIT_FILE \033[0m"
