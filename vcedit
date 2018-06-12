@@ -355,7 +355,7 @@ then
     echo Unable to retreive SVN status. 
     exit 1
 fi
-FILE_STATUS=`svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $EDIT_FILE | grep $EDIT_FILE | awk {'print $1,$NF'}`
+FILE_STATUS=`svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $EDIT_FILE | grep $EDIT_FILE`
 if [ -z $FILE_STATUS ] 
 then
     echo 
