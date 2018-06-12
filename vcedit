@@ -707,6 +707,11 @@ then
     echo $USERNAME: $COMMENT
     [ $VCDEBUG ] && echo "\033[34mExecuting: svn ci ${EDIT_FILE} -m \"$USERNAME: $COMMENT\" \033[0m"
     svn --config-option config:tunnels:ssh="$SSHOPTS" ci ${EDIT_FILE} -m "$USERNAME: $COMMENT" 
+    if [ $? != 0 ]
+    then
+        svn --config-option config:tunnels:ssh="$SSHOPTS" revert $EDIT_FILE
+        svn --config-option config:tunnels:ssh="$SSHOPTS" unlock $EDIT_FILE
+    fi
 else
     echo -e "\033[34mNo change made on $EDIT_FILE \033[0m"
     [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn unlock $EDIT_FILE \033[0m"
