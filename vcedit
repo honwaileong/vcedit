@@ -356,7 +356,6 @@ then
     exit 1
 fi
 FILE_STATUS=($(echo \\`svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $EDIT_FILE | grep $EDIT_FILE | awk {'print $1,$NF'}`))
-echo file $EDIT_FILE status is "${FILE_STATUS[0]}"
 if [ -z $FILE_STATUS ] 
 then
     echo 
@@ -454,13 +453,13 @@ then
     done
 fi
 DEPRECATED
-#echo ${FILE_STATUS[0]}
+echo file $EDIT_FILE status is "${FILE_STATUS[0]}"
 case ${FILE_STATUS[0]} in
-    \\K)
+    \K)
         echo -e "\033[34mFile \"$EDIT_FILE\" is currently locked and being edited by user \"${FILE_STATUS[1]}\". \033[0m"
         exit 1
         ;;
-    \\?)
+    \\\?)
         echo -e "\033[34mFile \"$EDIT_FILE\" is not under revision control. \033[0m"
         VALID_RESPONSE=0
         while [ $VALID_RESPONSE == 0 ]
