@@ -8,6 +8,7 @@ usage ()
     echo -e "\033[34mUsage: vcedit -i <filename> \033[0m"
     echo -e "\033[34mUsage: vcedit -l <filename> \033[0m"
     echo -e "\033[34mUsage: vcedit -v <filename> \033[0m"
+    echo -e "\033[34mUsage: vcedit -s <filename> \033[0m"
     exit 0
 }
 
@@ -109,7 +110,7 @@ vcinit ()
 }
 
 while [ -n "$1" ]; do
-    while getopts ":c:d:f:hilr:u:v" OPT; do
+    while getopts ":c:d:f:hilr:su:v" OPT; do
         case $OPT in
             c)
                 CLASS=$OPTARG
@@ -131,6 +132,8 @@ while [ -n "$1" ]; do
                 ;;
        	    r)
                 SVNREPOOPT=$OPTARG
+                ;;
+            s)  VCSTATE=1
                 ;;
             u)
                 USERNAME=$OPTARG
@@ -272,7 +275,7 @@ then
     fi
 fi
 
-if [ $NEWFILE ] && [ ! $VCLIST ] && [ ! $VCINFO ] && [ ! $VCLOG ] 
+if [ $NEWFILE ] && [ ! $VCLIST ] && [ ! $VCINFO ] && [ ! $VCLOG ] && [ ! $VCSTATE ]
 then
     if [ ! `svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $NEWFILE | awk {'print $NF'} | grep $NEWFILE` ] 
     then
@@ -318,7 +321,7 @@ fi
 if [ ! $EDIT_FILE ]
 then
     echo No file to edit
-    if [ $VCLIST ] || [ $VCINFO ] || [ $VCLOG ]
+    if [ $VCLIST ] || [ $VCINFO ] || [ $VCLOG ] || [ $VCSTATE ]
     then
         svn info > /dev/null 
         [ $? == 0 ] || exit 1
@@ -326,6 +329,7 @@ then
         [ $VCLIST ] && echo -e "\033[34mListing files under $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" ls -v -R `svn info | grep ^URL | awk {'print $NF'}`
         [ $VCINFO ] && echo -e "\033[34mShowing info of $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" info
         [ $VCLOG ] && echo -e "\033[34mShowing changelog of $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" log -v
+        [ $VCSTATE ] && echo -e "\033[34mShowing status of current working directory against $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v
         exit 0
     else    
         usage
@@ -334,11 +338,12 @@ then
 fi
 
 [ $VCDEBUG ] && echo -e "\033[34mOperating on $EDIT_FILE \033[0m"
-if [ $VCLOG ] || [ $VCINFO ] || [ $VCLIST ]
+if [ $VCLOG ] || [ $VCINFO ] || [ $VCLIST ] || [ $VCSTATE ]
 then
     [ $VCLOG ] && svn --config-option config:tunnels:ssh="$SSHOPTS" log -v $EDIT_FILE
     [ $VCINFO ] && svn --config-option config:tunnels:ssh="$SSHOPTS" info $EDIT_FILE
     [ $VCLIST ] && svn --config-option config:tunnels:ssh="$SSHOPTS" ls -R -v $EDIT_FILE
+    [ $VCSTATE ] && svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $EDIT_FILE
     [ $? == 0 ] || exit 1
     exit 0
 fi
