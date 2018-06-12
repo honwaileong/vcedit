@@ -453,34 +453,6 @@ then
     done
 fi
 DEPRECATED
-if [ "`echo "$FILE_STATUS" | grep ^?`" ]
-then
-    echo -e "\033[34mFile \"$EDIT_FILE\" is not under revision control. \033[0m"
-    VALID_RESPONSE=0
-    while [ $VALID_RESPONSE == 0 ]
-    do
-        echo -e "\033[34mWould you like to add the file \"$EDIT_FILE\" to revision control? \033[0m"
-        echo -e "\033[34mYes (Y) No (N) \033[0m"
-        read RESPONSE
-        case $RESPONSE in
-            Y|y|Yes|YES|yes)
-                VALID_RESPONSE=1
-                vcinit add $EDIT_FILE
-                ;;
-            N|n|No|NO|no)
-                VALID_RESPONSE=1
-                [[ ! $NEWFILE ]] && vi $EDIT_FILE
-                exit 0
-                ;;
-            *)
-                echo
-                echo -e "\033[34mPlease specify "Yes" or "No" as answer only. \033[0m"
-                echo -e "\033[34mPlease retry. \033[0m"
-                echo
-                ;;
-        esac
-    done
-fi
 
 if [ "`echo "$FILE_STATUS" | grep \*`" ]
 then
@@ -508,8 +480,37 @@ then
                 ;;
         esac
     done
-    [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn update $NEWFILE \033[0m"
-    svn --config-option config:tunnels:ssh="$SSHOPTS" update $NEWFILE
+    [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn update $EDIT_FILE \033[0m"
+    svn --config-option config:tunnels:ssh="$SSHOPTS" update $EDIT_FILE
+fi
+
+if [ "`echo "$FILE_STATUS" | grep ^?`" ]
+then
+    echo -e "\033[34mFile \"$EDIT_FILE\" is not under revision control. \033[0m"
+    VALID_RESPONSE=0
+    while [ $VALID_RESPONSE == 0 ]
+    do
+        echo -e "\033[34mWould you like to add the file \"$EDIT_FILE\" to revision control? \033[0m"
+        echo -e "\033[34mYes (Y) No (N) \033[0m"
+        read RESPONSE
+        case $RESPONSE in
+            Y|y|Yes|YES|yes)
+                VALID_RESPONSE=1
+                vcinit add $EDIT_FILE
+                ;;
+            N|n|No|NO|no)
+                VALID_RESPONSE=1
+                [[ ! $NEWFILE ]] && vi $EDIT_FILE
+                exit 0
+                ;;
+            *)
+                echo
+                echo -e "\033[34mPlease specify "Yes" or "No" as answer only. \033[0m"
+                echo -e "\033[34mPlease retry. \033[0m"
+                echo
+                ;;
+        esac
+    done
 fi
 
 if [ "`echo "$FILE_STATUS" | grep ^M`" ]
