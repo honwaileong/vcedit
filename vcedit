@@ -523,7 +523,7 @@ svn --config-option config:tunnels:ssh="$SSHOPTS" lock $EDIT_FILE
 if [ $? != 0 ]
 then
     [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn lock $EDIT_FILE \033[0m"
-    svn --config-option config:tunnels:ssh="$SSHOPTS" lock $EDIT_FILE 2>&1 | grep "Lock failed: newer version" > /dev/null
+    svn --config-option config:tunnels:ssh="$SSHOPTS" lock $EDIT_FILE 2>&1 | grep -e "Lock failed: newer version|File already exists" > /dev/null
     if [ $? == 0 ]
     then
         echo -e "\033[34mAn updated version of the file is available from remote repository. \033[0m"
