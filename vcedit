@@ -113,7 +113,17 @@ while [ -n "$1" ]; do
     while getopts ":c:d:f:hilr:su:v" OPT; do
         case $OPT in
             c)
-                CLASS=$OPTARG
+                if [[ $OPTARG == *['!'@#\$%^\&\*\(\)_+-]* ]]
+                then
+                    echo
+                    echo -e "\033[31m-c argument contains special character. \033[0m"
+                    echo -e "\033[34mIf you want to view what class is currently available in the remote repository, \033[0m"
+                    echo -e "\033[34mplace -c option without argument at the end of the command. \033[0m"
+                    echo
+                    usage
+                else
+                    CLASS=$OPTARG
+                fi
                 ;;
             d)
                 REPODIR=$OPTARG
@@ -148,8 +158,13 @@ while [ -n "$1" ]; do
                 ;;
             :)
                 echo
-                echo -e "\033[34mMissing argument for -$OPTARG. \033[0m"
-                usage
+                if [ $OPTARG == "c" ]
+                then
+                    VCCLASS=1
+                else
+                    echo -e "\033[34mMissing argument for -$OPTARG. \033[0m"
+                    usage
+                fi
                 ;;
             *)
                 usage
@@ -255,8 +270,31 @@ then
             svn --config-option config:tunnels:ssh="$SSHOPTS" switch $SVNURL/$REPODIR/$CLASS --ignore-ancestry
         else
             REPOCLASS=$(svn --config-option config:tunnels:ssh="$SSHOPTS" info | grep "^Relative URL" | awk {'print $NF'} | awk -F '/' {'print $3'})
+            echo -e "\033[34mBranching \033[31m\"$CLASS\"\033[34m class. \033[0m"
+            VALID_RESPONSE=0
+            while [ $VALID_RESPONSE == 0 ]
+            do
+                echo -e "\033[34mDo you wish to continue? \033[0m"
+                echo -e "\033[34mYes (Y) \033[0m"
+                echo -e "\033[34mNo (N) \033[0m"
+                read RESPONSE
+                case $RESPONSE in
+                    Y|y|Yes|YES|yes)
+                        VALID_RESPONSE=1
+                        ;;
+                    N|n|No|NO|no)
+                        VALID_RESPONSE=1
+                        exit 0
+                        ;;
+                    *)
+                        echo
+                        echo -e "\033[31mPlease specify \033[47;31mYes\033[31m or \033[47;31mNo\033[31m as answer only. \033[0m"
+                        echo -e "\033[31mPlease retry. \033[0m"
+                        echo
+                        ;;
+                esac
+            done
             cicomment "Branching $REPOCLASS to $CLASS"
-            echo -e "\033[34mBranching $CLASS class. \033[0m"
             [ $VCDEBUG ] && echo -e "\033[34mExecuting: svn copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m \"$USERNAME: $COMMENT\" \033[0m"
             svn --config-option config:tunnels:ssh="$SSHOPTS" copy $SVNURL/$REPODIR/$REPOCLASS $SVNURL/$REPODIR/$CLASS -m "$USERNAME: $COMMENT" 
             echo -e "\033[34mSwitching to $CLASS class. \033[0m"
@@ -312,8 +350,9 @@ fi
 
 if [ ! $EDIT_FILE ]
 then
+    [ $NEWFILE ] && echo -e "\033[31mFile \"$NEWFILE\" does not exists. \033[0m" && exit 1
     echo No file to edit
-    if [ $VCLIST ] || [ $VCINFO ] || [ $VCLOG ] || [ $VCSTATE ]
+    if [ $VCLIST ] || [ $VCINFO ] || [ $VCLOG ] || [ $VCSTATE ] || [ $VCCLASS ]
     then
         svn info > /dev/null 
         [ $? == 0 ] || exit 1
@@ -322,6 +361,7 @@ then
         [ $VCINFO ] && echo -e "\033[34mShowing info of $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" info
         [ $VCLOG ] && echo -e "\033[34mShowing changelog of $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" log -v
         [ $VCSTATE ] && echo -e "\033[34mShowing status of current working directory against $REPOURL \033[0m" && svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v
+        [ $VCCLASS ] && echo -e "\033[34mShowing currently available class under `echo $REPOURL | awk -F '/' {'printf "%s/%s\n",$1,$2'}` \033[0m"&& svn --config-option config:tunnels:ssh="$SSHOPTS" ls `echo $REPOURL | awk -F '/' {'printf "%s/%s\n",$1,$2'}`
         exit 0
     else    
         usage
@@ -330,12 +370,13 @@ then
 fi
 
 [ $VCDEBUG ] && echo -e "\033[34mOperating on $EDIT_FILE \033[0m"
-if [ $VCLOG ] || [ $VCINFO ] || [ $VCLIST ] || [ $VCSTATE ]
+if [ $VCLOG ] || [ $VCINFO ] || [ $VCLIST ] || [ $VCSTATE ] || [ $VCCLASS ]
 then
     [ $VCLOG ] && svn --config-option config:tunnels:ssh="$SSHOPTS" log -v $EDIT_FILE
     [ $VCINFO ] && svn --config-option config:tunnels:ssh="$SSHOPTS" info $EDIT_FILE
     [ $VCLIST ] && svn --config-option config:tunnels:ssh="$SSHOPTS" ls -R -v $EDIT_FILE
     [ $VCSTATE ] && svn --config-option config:tunnels:ssh="$SSHOPTS" status -u -v $EDIT_FILE
+    [ $VCCLASS ] && REPOURL=`svn info | grep "Relative URL" | awk {'print $NF'}` && echo -e "\033[34mShowing currently available class under `echo $REPOURL | awk -F '/' {'printf "%s/%s\n",$1,$2'}` \033[0m"&& svn --config-option config:tunnels:ssh="$SSHOPTS" ls `echo $REPOURL | awk -F '/' {'printf "%s/%s\n",$1,$2'}`
     [ $? == 0 ] || exit 1
     exit 0
 fi
