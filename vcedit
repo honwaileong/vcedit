@@ -4,11 +4,22 @@
 usage ()
 {
     echo -e "\033[34mUsage: vcedit -d <repodir> -f <config_file> -r <svn_repo_url> -u <svn_user> <filename> \033[0m"
+    echo -e "\033[34mEdit file. \033[0m"
+    echo
     echo -e "\033[34mUsage: vcedit -c <class> \033[0m"
+    echo -e "\033[34mSwitch to a different class. If <class> is not specified, list currently available class in remote repository. \033[0m"
+    echo
     echo -e "\033[34mUsage: vcedit -i <filename> \033[0m"
+    echo -e "\033[34mShow information of file. If <filename> is not specified, show information of current working directory. \033[0m"
+    echo
     echo -e "\033[34mUsage: vcedit -l <filename> \033[0m"
+    echo -e "\033[34mList files and files under the remote repository. \033[0m"
+    echo
     echo -e "\033[34mUsage: vcedit -v <filename> \033[0m"
+    echo -e "\033[34mShow version changelog of file. If <filename> is not specified, show changelog of current working directory. \033[0m"
+    echo
     echo -e "\033[34mUsage: vcedit -s <filename> \033[0m"
+    echo -e "\033[34mShow status of file. If <filename> is not specified, show status of current working directory. \033[0m"
     exit 0
 }
 
