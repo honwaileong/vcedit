@@ -12,8 +12,21 @@ These two major issues can be addressed by using a text editor with version cont
 
 ## Installation and Setup
 
-Clone "vcedit" tool from https://github.com/hwleong/vcedit
+Clone "vcedit" tool from https://github.com/hwleong/vcedit and set PATH environment variable. 
 
-  $ git clone https://github.com/hwleong/vcedit
-  $ export PATH=/path/to/vcedit
+    $ git clone https://github.com/hwleong/vcedit
+    $ export PATH=/path/to/vcedit
 
+## Configurations
+
+"vcedit" tool comes with a "vc.conf" configuration file. 
+
+    $ cat vc.conf
+    SSHOPTS="/usr/bin/ssh -q" 
+    # User definable SSH options to be passed to Subversion when using svn+ssh repository. 
+    # If undefined, the default is "/usr/bin/ssh -q". 
+    SVNREPO=svn://repo.url.addr
+    # Default SVN Repository URL to use when initializing version control in a new directory. 
+    # If undefined, user will be prompted to key in a SVN Repository URL. 
+
+By default, "vcedit" lookup for "vc.conf" file in the same directory where "vcedit" is installed, unless "-f" option is passed to "vcedit" command.
