@@ -30,3 +30,24 @@ Clone "vcedit" tool from https://github.com/hwleong/vcedit and set PATH environm
     # If undefined, user will be prompted to key in a SVN Repository URL. 
 
 By default, "vcedit" lookup for "vc.conf" file in the same directory where "vcedit" is installed, unless "-f" option is passed to "vcedit" command.
+
+## Usage
+
+    $ vcedit -h
+    Usage: vcedit -d <repodir> -f <config_file> -r <svn_repo_url> -u <svn_user> <filename>
+    Edit <filename>.
+    
+    Usage: vcedit -c <class>
+    Switch to a different class. If <class> is not specified, list currently available class in remote repository.
+    
+    Usage: vcedit -i <filename>
+    Show information of file. If <filename> is not specified, show information of current working directory.
+    
+    Usage: vcedit -l
+    List files under the remote SVN repository.
+    
+    Usage: vcedit -v <filename>
+    Show version changelog of file. If <filename> is not specified, show changelog of current working directory.
+    
+    Usage: vcedit -s <filename>
+    Show status of file. If <filename> is not specified, show status of current working directory.
