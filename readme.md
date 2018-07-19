@@ -10,14 +10,12 @@ In large system like HPC system, there are usually more than one system administ
 
 These two major issues can be addressed by using a text editor with version control capability. In this first prototype, a wrapper that combines VIM and Subversion are employed. 
 
-## Installation and Setup
+## Installation and Configuration
 
 Clone "vcedit" tool from https://github.com/hwleong/vcedit and set PATH environment variable. 
 
     $ git clone https://github.com/hwleong/vcedit
     $ export PATH=/path/to/vcedit
-
-## Configurations
 
 "vcedit" tool comes with a "vc.conf" configuration file. 
 
