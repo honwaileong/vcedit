@@ -201,6 +201,11 @@ while [ -n "$1" ]; do
     fi
 done
 
+which svn > /dev/null 2>&1
+[ $? != 0 ] && echo -e "\033[31mSubversion is not installed. \033[0m" && exit 1
+
+svn --version | head -1 | grep -E "version 1.8|1.9" > /dev/null
+[ $? != 0 ] && echo -e "\033[34mvcedit requires Subversion version 1.8 or 1.9. \033[0m" && exit 1
 
 trap "echo Process is interrupted; echo reverting changes made to $EDIT_FILE; svn revert $EDIT_FILE; exit 255" SIGINT SIGTERM
 
